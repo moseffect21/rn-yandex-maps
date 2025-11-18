@@ -1,6 +1,6 @@
 {
   "name": "@moseffect21/rn-yandex-maps",
-  "version": "4.8.4",
+  "version": "4.8.5",
   "description": "Yandex.MapKit and Yandex.Geocoder for react-native (forked version)",
   "main": "build/index.js",
   "types": "build/index.d.ts",
