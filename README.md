@@ -1,6 +1,6 @@
-
 ## React Native Yandex Maps (Яндекс Карты)
 
+Форк библиотеки [volga-volga/react-native-yamap](https://github.com/volga-volga/react-native-yamap) с примененными патчами для работы
 Библиотека для интеграции Yandex Maps (Яндекс Карт) в React Native.
 
 ## Пример
@@ -10,11 +10,13 @@
 ## Установка
 
 ```
-yarn add react-native-yamap
+yarn add @moseffect21/rn-yandex-maps
 ```
+
 или
+
 ```
-npm i react-native-yamap --save
+npm i @moseffect21/rn-yandex-maps --save
 ```
 
 ### Линковка
@@ -26,7 +28,7 @@ npm i react-native-yamap --save
 #### Линковка в React Native <0.60
 
 ```
-react-native link react-native-yamap
+react-native link @moseffect21/rn-yandex-maps
 ```
 
 ## Использование карт
@@ -36,14 +38,12 @@ react-native link react-native-yamap
 Для этого лучше всего зайти в корневой файл приложения, например `App.js`, и добавить инициализацию:
 
 ```js
-import YaMap from 'react-native-yamap';
+import YaMap from "@moseffect21/rn-yandex-maps";
 
-YaMap.init('API_KEY');
+YaMap.init("API_KEY");
 ```
 
 #### iOS
-
-  
 
 **Обязательно** инициализировать MapKit в функции `didFinishLaunchingWithOptions` в AppDelegate.m/AppDelegate.mm:
 
@@ -66,18 +66,18 @@ YaMap.init('API_KEY');
 ### Изменение языка карт
 
 ```js
-import YaMap from 'react-native-yamap';
+import YaMap from "@moseffect21/rn-yandex-maps";
 
 const currentLocale = await YaMap.getLocale();
-YaMap.setLocale('en_US');  // 'ru_RU' или другие
+YaMap.setLocale("en_US"); // 'ru_RU' или другие
 YaMap.resetLocale();
 ```
 
--  **getLocale(): Promise\<string\>** - возвращает используемый язык карт;
+- **getLocale(): Promise\<string\>** - возвращает используемый язык карт;
 
--  **setLocale(locale: string): Promise\<void\>** - установить язык карт;
+- **setLocale(locale: string): Promise\<void\>** - установить язык карт;
 
--  **resetLocale(): Promise\<void\>** - использовать для карт язык системы.
+- **resetLocale(): Promise\<void\>** - использовать для карт язык системы.
 
 Каждый метод возвращает Promise, который выполняется при ответе нативного SDK. Promise может отклониться, если SDK вернет ошибку.
 
@@ -89,19 +89,21 @@ YaMap.resetLocale();
 ### Использование компонента
 
 ```jsx
-import React from 'react';
-import YaMap from 'react-native-yamap';
+import React from "react";
+import YaMap from "@moseffect21/rn-yandex-maps";
 
 const Map = () => {
   return (
     <YaMap
-      userLocationIcon={{ uri: 'https://www.clipartmax.com/png/middle/180-1801760_pin-png.png' }}
+      userLocationIcon={{
+        uri: "https://www.clipartmax.com/png/middle/180-1801760_pin-png.png",
+      }}
       initialRegion={{
         lat: 50,
         lon: 50,
         zoom: 10,
         azimuth: 80,
-        tilt: 100
+        tilt: 100,
       }}
       style={{ flex: 1 }}
     />
@@ -142,11 +144,18 @@ interface InitialRegion {
   tilt?: number;
 }
 
+type MasstransitVehicles =
+  | "bus"
+  | "trolleybus"
+  | "tramway"
+  | "minibus"
+  | "suburban"
+  | "underground"
+  | "ferry"
+  | "cable"
+  | "funicular";
 
-type MasstransitVehicles = 'bus' | 'trolleybus' | 'tramway' | 'minibus' | 'suburban' | 'underground' | 'ferry' | 'cable' | 'funicular';
-
-type Vehicles = MasstransitVehicles | 'walk' | 'car';
-
+type Vehicles = MasstransitVehicles | "walk" | "car";
 
 interface DrivingInfo {
   time: string;
@@ -155,12 +164,12 @@ interface DrivingInfo {
 }
 
 interface MasstransitInfo {
-  time:  string;
-  transferCount:  number;
-  walkingDistance:  number;
+  time: string;
+  transferCount: number;
+  walkingDistance: number;
 }
 
-interface RouteInfo<T extends(DrivingInfo | MasstransitInfo)> {
+interface RouteInfo<T extends DrivingInfo | MasstransitInfo> {
   id: string;
   sections: {
     points: Point[];
@@ -171,12 +180,12 @@ interface RouteInfo<T extends(DrivingInfo | MasstransitInfo)> {
     type: string;
     transports?: any;
     sectionColor?: string;
-  }
+  };
 }
 
-interface RoutesFoundEvent<T extends(DrivingInfo | MasstransitInfo)> {
-  nativeEvent:  {
-    status: 'success' | 'error';
+interface RoutesFoundEvent<T extends DrivingInfo | MasstransitInfo> {
+  nativeEvent: {
+    status: "success" | "error";
     id: string;
     routes: RouteInfo<T>[];
   };
@@ -187,7 +196,7 @@ interface CameraPosition {
   tilt: number;
   azimuth: number;
   point: Point;
-  reason: 'GESTURES' | 'APPLICATION';
+  reason: "GESTURES" | "APPLICATION";
   finished: boolean;
 }
 
@@ -196,19 +205,18 @@ type VisibleRegion = {
   bottomRight: Point;
   topLeft: Point;
   topRight: Point;
-}
-
+};
 
 type YamapSuggest = {
   title: string;
   subtitle?: string;
   uri?: string;
-}
+};
 
 type YamapCoords = {
   lon: number;
   lat: number;
-}
+};
 
 type YamapSuggestWithCoords = {
   lon: number;
@@ -216,64 +224,64 @@ type YamapSuggestWithCoords = {
   title: string;
   subtitle?: string;
   uri?: string;
-}
+};
 
 type YandexLogoPosition = {
-  horizontal: 'left' | 'center' | 'right';
-  vertical: 'top' | 'bottom';
-}
+  horizontal: "left" | "center" | "right";
+  vertical: "top" | "bottom";
+};
 
 type YandexLogoPadding = {
   horizontal?: number;
   vertical?: number;
-}
+};
 ```
 
 #### Доступные `props` для компонента **MapView**:
 
-| Название | Тип | Стандартное значение | Описание                                                                                                                                                                                               |
-|--|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| showUserPosition | boolean | true | Отслеживание геоданных и отображение позиции пользователя. В Андройд нужно запросить `android.permission.ACCESS_FINE_LOCATION`. В Ios нужно добавить `NSLocationWhenInUseUsageDescription` в Info.plst |
-| followUser | boolean | true | слежение камеры за пользователем                                                                                                                                                                       |
-| userLocationIcon | ImageSource | false | Иконка для позиции пользователя. Доступны те же значения что и у компонента Image из React Native                                                                                                      |
-| userLocationIconScale | number | 1 | Масштабирование иконки пользователя                                                                                                                                                                    |
-| initialRegion | InitialRegion | | Изначальное местоположение карты при загрузке                                                                                                                                                          |
-| interactive | boolean | true | Интерактивная ли карта (перемещение по карте, отслеживание нажатий)                                                                                                                                    |
-| nightMode | boolean | false | Использование ночного режима                                                                                                                                                                           |
-| onMapLoaded | function | | Колбек на загрузку карты                                                                                                                                                                               |
-| onCameraPositionChange | function | | Колбек на изменение положения камеры                                                                                                                                                                   |
-| onCameraPositionChangeEnd | function | | Колбек при завершении изменения положения камеры                                                                                                                                                       |
-| onMapPress | function | | Событие нажития на карту. Возвращает координаты точки на которую нажали                                                                                                                                |
-| onMapLongPress | function | | Событие долгого нажития на карту. Возвращает координаты точки на которую нажали                                                                                                                        |
-| userLocationAccuracyFillColor | string |  | Цвет фона зоны точности определения позиции пользователя                                                                                                                                               |
-| userLocationAccuracyStrokeColor | string |  | Цвет границы зоны точности определения позиции пользователя                                                                                                                                            |
-| userLocationAccuracyStrokeWidth | number | | Толщина зоны точности определения позиции пользователя                                                                                                                                                 |
-| scrollGesturesEnabled | boolean | true | Включены ли жесты скролла                                                                                                                                                                              |
-| zoomGesturesEnabled | boolean | true | Включены ли жесты зума                                                                                                                                                                                 |
-| tiltGesturesEnabled | boolean | true | Включены ли жесты наклона камеры двумя пальцами                                                                                                                                                        |
-| rotateGesturesEnabled | boolean | true | Включены ли жесты поворота камеры                                                                                                                                                                      |
-| fastTapEnabled | boolean | true | Убрана ли задержка в 300мс при клике/тапе                                                                                                                                                              |
-| clusterColor | string | 'red' | Цвет фона метки-кластера                                                                                                                                                                               |
-| maxFps | number | 60 | Максимальная частота обновления карты                                                                                                                                                                  |
-| logoPosition | YandexLogoPosition | {} | Позиция логотипа Яндекса на карте                                                                                                                                                                      |
-| logoPadding | YandexLogoPadding | {} | Отступ логотипа Яндекса на карте                                                                                                                                                                       |
-| mapStyle | string | {} | Стили карты согласно [документации](https://yandex.ru/dev/maps/mapkit/doc/dg/concepts/style.html)                                                                                                      |
+| Название                        | Тип                | Стандартное значение | Описание                                                                                                                                                                                               |
+| ------------------------------- | ------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| showUserPosition                | boolean            | true                 | Отслеживание геоданных и отображение позиции пользователя. В Андройд нужно запросить `android.permission.ACCESS_FINE_LOCATION`. В Ios нужно добавить `NSLocationWhenInUseUsageDescription` в Info.plst |
+| followUser                      | boolean            | true                 | слежение камеры за пользователем                                                                                                                                                                       |
+| userLocationIcon                | ImageSource        | false                | Иконка для позиции пользователя. Доступны те же значения что и у компонента Image из React Native                                                                                                      |
+| userLocationIconScale           | number             | 1                    | Масштабирование иконки пользователя                                                                                                                                                                    |
+| initialRegion                   | InitialRegion      |                      | Изначальное местоположение карты при загрузке                                                                                                                                                          |
+| interactive                     | boolean            | true                 | Интерактивная ли карта (перемещение по карте, отслеживание нажатий)                                                                                                                                    |
+| nightMode                       | boolean            | false                | Использование ночного режима                                                                                                                                                                           |
+| onMapLoaded                     | function           |                      | Колбек на загрузку карты                                                                                                                                                                               |
+| onCameraPositionChange          | function           |                      | Колбек на изменение положения камеры                                                                                                                                                                   |
+| onCameraPositionChangeEnd       | function           |                      | Колбек при завершении изменения положения камеры                                                                                                                                                       |
+| onMapPress                      | function           |                      | Событие нажития на карту. Возвращает координаты точки на которую нажали                                                                                                                                |
+| onMapLongPress                  | function           |                      | Событие долгого нажития на карту. Возвращает координаты точки на которую нажали                                                                                                                        |
+| userLocationAccuracyFillColor   | string             |                      | Цвет фона зоны точности определения позиции пользователя                                                                                                                                               |
+| userLocationAccuracyStrokeColor | string             |                      | Цвет границы зоны точности определения позиции пользователя                                                                                                                                            |
+| userLocationAccuracyStrokeWidth | number             |                      | Толщина зоны точности определения позиции пользователя                                                                                                                                                 |
+| scrollGesturesEnabled           | boolean            | true                 | Включены ли жесты скролла                                                                                                                                                                              |
+| zoomGesturesEnabled             | boolean            | true                 | Включены ли жесты зума                                                                                                                                                                                 |
+| tiltGesturesEnabled             | boolean            | true                 | Включены ли жесты наклона камеры двумя пальцами                                                                                                                                                        |
+| rotateGesturesEnabled           | boolean            | true                 | Включены ли жесты поворота камеры                                                                                                                                                                      |
+| fastTapEnabled                  | boolean            | true                 | Убрана ли задержка в 300мс при клике/тапе                                                                                                                                                              |
+| clusterColor                    | string             | 'red'                | Цвет фона метки-кластера                                                                                                                                                                               |
+| maxFps                          | number             | 60                   | Максимальная частота обновления карты                                                                                                                                                                  |
+| logoPosition                    | YandexLogoPosition | {}                   | Позиция логотипа Яндекса на карте                                                                                                                                                                      |
+| logoPadding                     | YandexLogoPadding  | {}                   | Отступ логотипа Яндекса на карте                                                                                                                                                                       |
+| mapStyle                        | string             | {}                   | Стили карты согласно [документации](https://yandex.ru/dev/maps/mapkit/doc/dg/concepts/style.html)                                                                                                      |
 
 #### Доступные методы для компонента **MapView**:
 
--  `fitMarkers(points: Point[]): void` - подобрать положение камеры, чтобы вместить указанные маркеры (если возможно);
--  `fitAllMarkers(): void` - подобрать положение камеры, чтобы вместить все маркеры (если возможно);
--  `setCenter(center: { lon: number, lat: number }, zoom: number = 10, azimuth: number = 0, tilt: number = 0, duration: number = 0, animation: Animation = Animation.SMOOTH)` - устанавливает камеру в точку с заданным zoom, поворотом по азимуту и наклоном карты (`tilt`). Можно параметризовать анимацию: длительность и тип. Если длительность установить 0, то переход будет без анимации. Возможные типы анимаций `Animation.SMOOTH` и `Animation.LINEAR`;
--  `setZoom(zoom: number, duration: number, animation: Animation)` - изменить текущий zoom карты. Параметры `duration` и `animation` работают по аналогии с `setCenter`;
--  `getCameraPosition(callback: (position: CameraPosition) => void)` - запрашивает положение камеры и вызывает переданный колбек с текущим значением;
--  `getVisibleRegion(callback: (region: VisibleRegion) => void)` - запрашивает видимый регион и вызывает переданный колбек с текущим значением;
--  `findRoutes(points: Point[], vehicles: Vehicles[], callback: (event: RoutesFoundEvent) => void)` - запрос маршрутов через точки `points` с использованием транспорта `vehicles`. При получении маршрутов будет вызван `callback` с информацией обо всех маршрутах (подробнее в разделе **"Запрос маршрутов"**);
--  `findMasstransitRoutes(points: Point[], callback: (event: RoutesFoundEvent<MasstransitInfo>) => void): void` - запрос маршрутов на любом общественном транспорте;
--  `findPedestrianRoutes(points: Point[], callback: (event: RoutesFoundEvent<MasstransitInfo>) => void): void` - запрос пешеходного маршрута;
--  `findDrivingRoutes(points: Point[], callback: (event: RoutesFoundEvent<DrivingInfo>) => void): void` - запрос маршрута для автомобиля;
--  `setTrafficVisible(isVisible: boolean): void` - включить/отключить отображение слоя с пробками на картах;
--  `getScreenPoints(point: Point[], callback: (screenPoints: ScreenPoint[]) => void)` - получить кооординаты на экране (x и y) по координатам маркеров;
--  `getWorldPoints(screenPoint: ScreenPoint[], callback: (worldPoints: Point[]) => void)` - получить координаты точек (lat и lon) по координатам на экране.
+- `fitMarkers(points: Point[]): void` - подобрать положение камеры, чтобы вместить указанные маркеры (если возможно);
+- `fitAllMarkers(): void` - подобрать положение камеры, чтобы вместить все маркеры (если возможно);
+- `setCenter(center: { lon: number, lat: number }, zoom: number = 10, azimuth: number = 0, tilt: number = 0, duration: number = 0, animation: Animation = Animation.SMOOTH)` - устанавливает камеру в точку с заданным zoom, поворотом по азимуту и наклоном карты (`tilt`). Можно параметризовать анимацию: длительность и тип. Если длительность установить 0, то переход будет без анимации. Возможные типы анимаций `Animation.SMOOTH` и `Animation.LINEAR`;
+- `setZoom(zoom: number, duration: number, animation: Animation)` - изменить текущий zoom карты. Параметры `duration` и `animation` работают по аналогии с `setCenter`;
+- `getCameraPosition(callback: (position: CameraPosition) => void)` - запрашивает положение камеры и вызывает переданный колбек с текущим значением;
+- `getVisibleRegion(callback: (region: VisibleRegion) => void)` - запрашивает видимый регион и вызывает переданный колбек с текущим значением;
+- `findRoutes(points: Point[], vehicles: Vehicles[], callback: (event: RoutesFoundEvent) => void)` - запрос маршрутов через точки `points` с использованием транспорта `vehicles`. При получении маршрутов будет вызван `callback` с информацией обо всех маршрутах (подробнее в разделе **"Запрос маршрутов"**);
+- `findMasstransitRoutes(points: Point[], callback: (event: RoutesFoundEvent<MasstransitInfo>) => void): void` - запрос маршрутов на любом общественном транспорте;
+- `findPedestrianRoutes(points: Point[], callback: (event: RoutesFoundEvent<MasstransitInfo>) => void): void` - запрос пешеходного маршрута;
+- `findDrivingRoutes(points: Point[], callback: (event: RoutesFoundEvent<DrivingInfo>) => void): void` - запрос маршрута для автомобиля;
+- `setTrafficVisible(isVisible: boolean): void` - включить/отключить отображение слоя с пробками на картах;
+- `getScreenPoints(point: Point[], callback: (screenPoints: ScreenPoint[]) => void)` - получить кооординаты на экране (x и y) по координатам маркеров;
+- `getWorldPoints(screenPoint: ScreenPoint[], callback: (worldPoints: Point[]) => void)` - получить координаты точек (lat и lon) по координатам на экране.
 
 **ВАЖНО**
 
@@ -285,59 +293,59 @@ type YandexLogoPadding = {
 ### Marker
 
 ```jsx
-import { Marker } from 'react-native-yamap';
+import { Marker } from "@moseffect21/rn-yandex-maps";
 
 <YaMap>
-  <Marker point={{ lat: 50, lon: 50 }}/>
-</YaMap>
+  <Marker point={{ lat: 50, lon: 50 }} />
+</YaMap>;
 ```
 
 #### Доступные `props` для примитива **Marker**:
 
-| Название | Тип | Описание |
-|--|--|--|
-| point | Point | Координаты точки для отображения маркера |
-| scale | number | Масштабирование иконки маркера. Не работает если использовать children у маркера |
-| source | ImageSource | Данные для изображения маркера |
-| children | ReactElement | Рендер маркера как компонента |
-| onPress | function | Действие при нажатии/клике |
-| anchor | {  x:  number,  y:  number  } | Якорь иконки маркера. Координаты принимают значения от 0 до 1 |
-| zIndex | number | Отображение элемента по оси Z |
-| visible | boolean | Отображение маркера на карте |
-| handled | boolean | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
+| Название | Тип                      | Описание                                                                                       |
+| -------- | ------------------------ | ---------------------------------------------------------------------------------------------- |
+| point    | Point                    | Координаты точки для отображения маркера                                                       |
+| scale    | number                   | Масштабирование иконки маркера. Не работает если использовать children у маркера               |
+| source   | ImageSource              | Данные для изображения маркера                                                                 |
+| children | ReactElement             | Рендер маркера как компонента                                                                  |
+| onPress  | function                 | Действие при нажатии/клике                                                                     |
+| anchor   | { x: number, y: number } | Якорь иконки маркера. Координаты принимают значения от 0 до 1                                  |
+| zIndex   | number                   | Отображение элемента по оси Z                                                                  |
+| visible  | boolean                  | Отображение маркера на карте                                                                   |
+| handled  | boolean                  | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
 
 #### Доступные методы для примитива **Marker**:
 
--  `animatedMoveTo(point: Point, duration: number)` - плавное изменение позиции маркера;
--  `animatedRotateTo(angle: number, duration: number)` - плавное вращение маркера.
+- `animatedMoveTo(point: Point, duration: number)` - плавное изменение позиции маркера;
+- `animatedRotateTo(angle: number, duration: number)` - плавное вращение маркера.
 
 ### Circle
 
 ```jsx
-import { Circle } from 'react-native-yamap';
+import { Circle } from "@moseffect21/rn-yandex-maps";
 
 <YaMap>
   <Circle center={{ lat: 50, lon: 50 }} radius={300} />
-</YaMap>
+</YaMap>;
 ```
 
 #### Доступные `props` для примитива **Circle**:
 
-| Название | Тип | Описание |
-|--|--|--|
-| center | Point | Координаты центра круга |
-| radius | number | Радиус круга в метрах |
-| fillColor | string | Цвет заливки |
-| strokeColor | string | Цвет границы |
-| strokeWidth | number | Толщина границы |
-| onPress | function | Действие при нажатии/клике |
-| zIndex | number | Отображение элемента по оси Z |
-| handled | boolean | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
+| Название    | Тип      | Описание                                                                                       |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------- |
+| center      | Point    | Координаты центра круга                                                                        |
+| radius      | number   | Радиус круга в метрах                                                                          |
+| fillColor   | string   | Цвет заливки                                                                                   |
+| strokeColor | string   | Цвет границы                                                                                   |
+| strokeWidth | number   | Толщина границы                                                                                |
+| onPress     | function | Действие при нажатии/клике                                                                     |
+| zIndex      | number   | Отображение элемента по оси Z                                                                  |
+| handled     | boolean  | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
 
 ### Polyline
 
 ```jsx
-import { Polyline } from 'react-native-yamap';
+import { Polyline } from "@moseffect21/rn-yandex-maps";
 
 <YaMap>
   <Polyline
@@ -347,29 +355,29 @@ import { Polyline } from 'react-native-yamap';
       { lat: 20, lon: 20 },
     ]}
   />
-</YaMap>
+</YaMap>;
 ```
 
 #### Доступные `props` для примитива **Polyline**:
 
-| Название | Тип | Описание |
-|--|--|--|
-| points | Point[] | Массив точек линии |
-| strokeColor | string | Цвет линии |
-| strokeWidth | number | Толщина линии |
-| outlineColor | string | Цвет обводки |
-| outlineWidth | number | Толщина обводки |
-| dashLength | number | Длина штриха |
-| dashOffset | number | Отступ первого штриха от начала полилинии |
-| gapLength | number | Длина разрыва между штрихами |
-| onPress | function | Действие при нажатии/клике |
-| zIndex | number | Отображение элемента по оси Z |
-| handled | boolean | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
+| Название     | Тип      | Описание                                                                                       |
+| ------------ | -------- | ---------------------------------------------------------------------------------------------- |
+| points       | Point[]  | Массив точек линии                                                                             |
+| strokeColor  | string   | Цвет линии                                                                                     |
+| strokeWidth  | number   | Толщина линии                                                                                  |
+| outlineColor | string   | Цвет обводки                                                                                   |
+| outlineWidth | number   | Толщина обводки                                                                                |
+| dashLength   | number   | Длина штриха                                                                                   |
+| dashOffset   | number   | Отступ первого штриха от начала полилинии                                                      |
+| gapLength    | number   | Длина разрыва между штрихами                                                                   |
+| onPress      | function | Действие при нажатии/клике                                                                     |
+| zIndex       | number   | Отображение элемента по оси Z                                                                  |
+| handled      | boolean  | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
 
 ### Polygon
 
 ```jsx
-import { Polygon } from 'react-native-yamap';
+import { Polygon } from "@moseffect21/rn-yandex-maps";
 
 <YaMap>
   <Polygon
@@ -379,21 +387,21 @@ import { Polygon } from 'react-native-yamap';
       { lat: 20, lon: 20 },
     ]}
   />
-</YaMap>
+</YaMap>;
 ```
 
 #### Доступные `props` для примитива **Polygon**:
 
-| Название | Тип | Описание |
-|--|--|--|
-| points | Point[] | Массив точек линии |
-| fillColor | string | Цвет заливки |
-| strokeColor | string | Цвет границы |
-| strokeWidth | number | Толщина границы |
-| innerRings | (Point[])[] | Массив полилиний, которые образуют отверстия в полигоне |
-| onPress | function | Действие при нажатии/клике |
-| zIndex | number | Отображение элемента по оси Z |
-| handled | boolean | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
+| Название    | Тип         | Описание                                                                                       |
+| ----------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| points      | Point[]     | Массив точек линии                                                                             |
+| fillColor   | string      | Цвет заливки                                                                                   |
+| strokeColor | string      | Цвет границы                                                                                   |
+| strokeWidth | number      | Толщина границы                                                                                |
+| innerRings  | (Point[])[] | Массив полилиний, которые образуют отверстия в полигоне                                        |
+| onPress     | function    | Действие при нажатии/клике                                                                     |
+| zIndex      | number      | Отображение элемента по оси Z                                                                  |
+| handled     | boolean     | Включение(**false**)/отключение(**true**) всплытия события нажатия для родителя `default:true` |
 
 ## Запрос маршрутов
 
@@ -403,9 +411,9 @@ import { Polygon } from 'react-native-yamap';
 
 Доступны следующие роутеры из Yandex MapKit:
 
--  **masstransit** - для маршрутов на общественном транспорте;
--  **pedestrian** - для пешеходных маршрутов;
--  **driving** - для маршрутов на автомобиле.
+- **masstransit** - для маршрутов на общественном транспорте;
+- **pedestrian** - для пешеходных маршрутов;
+- **driving** - для маршрутов на автомобиле.
 
 Тип роутера зависит от переданного в функцию массива `vehicles`:
 
@@ -430,9 +438,9 @@ findDrivingRoutes(points: Point[], callback: (event: RoutesFoundEvent) => void):
 ### Инициализация
 
 ```typescript
-import { Geocoder } from 'react-native-yamap';
+import { Geocoder } from "@moseffect21/rn-yandex-maps";
 
-Geocoder.init('API_KEY');
+Geocoder.init("API_KEY");
 ```
 
 `API_KEY` для API геокодера и для карт **отличаются**. Инициализировать надо оба класса и каждый со своим ключем.
@@ -444,9 +452,9 @@ Geocoder.geocode(geocode: Point, kind?: ObjectKind, results?: number, skip?: num
 ```
 
 [Документация по запросу к геокодеру](https://yandex.ru/dev/maps/geocoder/doc/desc/concepts/input_params.html)
-[Документация по ответу геокодера]( https://yandex.ru/dev/maps/geocoder/doc/desc/reference/response_structure.html)
+[Документация по ответу геокодера](https://yandex.ru/dev/maps/geocoder/doc/desc/reference/response_structure.html)
 
-#### Упрощенный вызов ####
+#### Упрощенный вызов
 
 ```typescript
 Geocoder.geoToAddress(geo: Point);
@@ -460,12 +468,11 @@ interface Address {
   formatted: string;
   postal_code: string;
   Components: {
-    kind: string,
-    name: string
+    kind: string;
+    name: string;
   }[];
 }
 ```
-
 
 ### Обратное геокодирование
 
@@ -474,9 +481,9 @@ Geocoder.reverseGeocode(geocode: string, kind?: ObjectKind, results?: number,  s
 ```
 
 [Документация по запросу к геокодеру](https://yandex.ru/dev/maps/geocoder/doc/desc/concepts/input_params.html)
-[Документация по ответу геокодера]( https://yandex.ru/dev/maps/geocoder/doc/desc/reference/response_structure.html)
+[Документация по ответу геокодера](https://yandex.ru/dev/maps/geocoder/doc/desc/reference/response_structure.html)
 
-#### Упрощенный вызов ####
+#### Упрощенный вызов
 
 ```typescript
 Geocoder.addressToGeo(address: string);
@@ -489,8 +496,7 @@ Geocoder.addressToGeo(address: string);
 Для поиска с геоподсказками нужно воспользоваться модулем Suggest:
 
 ```typescript
-
-import { Suggest } from 'react-native-yamap';
+import { Suggest } from "@moseffect21/rn-yandex-maps";
 
 const find = async (query: string, options?: SuggestOptions) => {
   const suggestions = await Suggest.suggest(query, options);
@@ -513,67 +519,69 @@ const find = async (query: string, options?: SuggestOptions) => {
 
   // After searh session is finished
   Suggest.reset();
-}
+};
 ```
+
 ## Поиск по гео (GeoSearch)
 
 Для поиска нужно воспользоваться модулем Suggest:
 
 ```typescript
-
-import { Search } from 'react-native-yamap';
+import { Search } from "@moseffect21/rn-yandex-maps";
 
 const find = async (query: string, options?: SuggestOptions) => {
   // можно использовать Point, BoundingBox, Polyline и Polygon (4 точки, без innerRings)
   const search = await Search.searchText(
-    'Москва',
-    { type: GeoFigureType.POINT, value: {lat: 54, lon: 53}},
-    { disableSpellingCorrection: true, geometry: true },
+    "Москва",
+    { type: GeoFigureType.POINT, value: { lat: 54, lon: 53 } },
+    { disableSpellingCorrection: true, geometry: true }
   );
 
   // второй параметр это зум, определяющий на сколько малые объекты искать
-  const searchByPoint = await Search.searchPoint({lat: 54, lon: 53}, 10, {
+  const searchByPoint = await Search.searchPoint({ lat: 54, lon: 53 }, 10, {
     disableSpellingCorrection: true,
     geometry: true,
   });
 
-  const resolveURI = await Search.resolveURI("ymapsbm1://geo?data=IgoNAQBYQhUBAFhC", {
-    disableSpellingCorrection: true,
-    geometry: true,
-  });
+  const resolveURI = await Search.resolveURI(
+    "ymapsbm1://geo?data=IgoNAQBYQhUBAFhC",
+    {
+      disableSpellingCorrection: true,
+      geometry: true,
+    }
+  );
 
-  const searchByURI = await Search.searchByURI("ymapsbm1://geo?data=IgoNAQBYQhUBAFhC", {
-    disableSpellingCorrection: true,
-    geometry: true,
-  });
-  
-//   {"Components": [{"kind": "4", "name": "Малиновский сельсовет"}, {"kind": "4", "name": "Белебеевский район"}, {"kind": "3", "name": "Республика Башкортостан"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "3", "name": "Приволжский федеральный округ"}, {"kind": "1", "name": "Россия"}], "country_code": "RU", "formatted": "Россия, Республика Башкортостан, Белебеевский район, Малиновский сельсовет", "uri": "ymapsbm1://geo?data=IgoNAQBYQhUBAFhC"}
-  
-}
+  const searchByURI = await Search.searchByURI(
+    "ymapsbm1://geo?data=IgoNAQBYQhUBAFhC",
+    {
+      disableSpellingCorrection: true,
+      geometry: true,
+    }
+  );
+
+  //   {"Components": [{"kind": "4", "name": "Малиновский сельсовет"}, {"kind": "4", "name": "Белебеевский район"}, {"kind": "3", "name": "Республика Башкортостан"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "3", "name": "Приволжский федеральный округ"}, {"kind": "1", "name": "Россия"}], "country_code": "RU", "formatted": "Россия, Республика Башкортостан, Белебеевский район, Малиновский сельсовет", "uri": "ymapsbm1://geo?data=IgoNAQBYQhUBAFhC"}
+};
 ```
 
 Также теперь можно воспользоваться геокодированием из поиска
 
 ```typescript
+import { Search } from "@moseffect21/rn-yandex-maps";
 
-import { Search } from 'react-native-yamap';
-
-const address = Search.geocodePoint({lat: 54, lon: 53});
+const address = Search.geocodePoint({ lat: 54, lon: 53 });
 
 // {"Components": [{"kind": "4", "name": "Малиновский сельсовет"}, {"kind": "4", "name": "Белебеевский район"}, {"kind": "3", "name": "Республика Башкортостан"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "19", "name": "Понтийско-Каспийская степь"}, {"kind": "3", "name": "Приволжский федеральный округ"}, {"kind": "1", "name": "Россия"}], "country_code": "RU", "formatted": "Россия, Республика Башкортостан, Белебеевский район, Малиновский сельсовет", "uri": "ymapsbm1://geo?data=IgoNAQBYQhUBAFhC"}
 
 const point = Search.geocodeAddress(address.formatted);
 
 // возвращает координаты по адресу {"lat": 53.999187242158015, "lon": 54.089440735780194}
-
 ```
-
 
 ### Использование компонента ClusteredYamap
 
 ```jsx
-import React from 'react';
-import { ClusteredYamap } from '../../react-native-yamap/src';
+import React from "react";
+import { ClusteredYamap } from "../../@moseffect21/rn-yandex-maps/src";
 
 const Map = () => {
   return (
@@ -595,25 +603,22 @@ const Map = () => {
           data: {},
         },
       ]}
-      renderMarker={(info, index) => (
-        <Marker
-          key={index}
-          point={info.point}
-        />
-      )}
-      style={{flex: 1}}
+      renderMarker={(info, index) => <Marker key={index} point={info.point} />}
+      style={{ flex: 1 }}
     />
   );
 };
 ```
 
 # Использование с Expo
+
 Для подключения нативного модуля в приложение с expo используйте expo prebuild.
 Он выполнит eject и сгенерирует привычные папки android и ios с нативным кодом. Это позволит использовать любую библиотеку так же, как и приложение с react native cli.
 
-Для корректной работы на iOS react-native-yamap требует обновить AppDelegate.mm и инициализировать YMKMapKit при запуске приложения. prebuild не гарантирует сохранности папок android и ios, их нет смысла включать в Git. Чтобы напрямую менять нативный код есть config plugins.
+Для корректной работы на iOS @moseffect21/rn-yandex-maps требует обновить AppDelegate.mm и инициализировать YMKMapKit при запуске приложения. prebuild не гарантирует сохранности папок android и ios, их нет смысла включать в Git. Чтобы напрямую менять нативный код есть config plugins.
 
 Обновите app.json на app.config.ts и используйте этот пример модификации AppDelegate:
+
 ```jsx
 import { type ExpoConfig } from "@expo/config-types";
 import { withAppDelegate, type ConfigPlugin } from "expo/config-plugins";
@@ -632,7 +637,11 @@ const withYandexMaps: ConfigPlugin = (config) => {
     const appDelegate = config.modResults;
 
     // Add import
-    if (!appDelegate.contents.includes("#import <YandexMapsMobile/YMKMapKitFactory.h>")) {
+    if (
+      !appDelegate.contents.includes(
+        "#import <YandexMapsMobile/YMKMapKitFactory.h>"
+      )
+    ) {
       // Replace the first line with the intercom import
       appDelegate.contents = appDelegate.contents.replace(
         /#import "AppDelegate.h"/g,

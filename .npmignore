@@ -1,0 +1,80 @@
+# Development source files (use compiled build/ instead)
+src/
+
+# Scripts (internal tools)
+scripts/
+
+# Development files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+*.tgz
+*.tar.gz
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Config files (development only)
+tsconfig.json
+.eslintrc*
+.prettierrc*
+jest.config.*
+babel.config.*
+
+# Package manager files
+package-lock.json
+yarn.lock
+
+# Documentation (development only)
+PUBLISH_GUIDE.md
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Android build artifacts (source is enough)
+android/.gradle/
+android/build/
+android/local.properties
+android/*.iml
+
+# iOS build artifacts (source is enough)
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/
+ios/*.xcuserdata/
+ios/DerivedData/
+
+# React Native
+.expo/
+.expo-shared/
+
+# Files to INCLUDE (override above rules if needed)
+# These are automatically included via package.json "files" field:
+# - build/
+# - android/
+# - ios/
+# - RNYamap.podspec
+# - README.md
+

@@ -1,14 +1,23 @@
 {
-  "name": "react-native-yamap",
+  "name": "@moseffect21/rn-yandex-maps",
   "version": "4.8.3",
-  "description": "Yandex.MapKit and Yandex.Geocoder for react-native",
+  "description": "Yandex.MapKit and Yandex.Geocoder for react-native (forked version)",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
+    "build": "tsc",
     "prepublishOnly": "rm -rf build && tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "publish:patch": "./scripts/publish.sh patch",
+    "publish:minor": "./scripts/publish.sh minor",
+    "publish:major": "./scripts/publish.sh major",
+    "publish:check": "npm pack --dry-run"
   },
-  "homepage": "https://github.com/volga-volga/react-native-yamap",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moseffect21/rn-yandex-maps.git"
+  },
+  "homepage": "https://github.com/moseffect21/rn-yandex-maps",
   "keywords": [
     "react-native",
     "mapkit",
@@ -24,8 +33,11 @@
     "yandexmaps",
     "geocoder"
   ],
-  "author": "Nikita Sirotkin",
-  "license": "",
+  "author": {
+    "name": "moseffect21",
+    "email": "moseffect21@example.com"
+  },
+  "license": "MIT",
   "devDependencies": {
     "@types/react": "*",
     "@types/react-native": "*",
@@ -34,5 +46,16 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
-  }
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "build",
+    "android",
+    "ios",
+    "RNYamap.podspec",
+    "README.md"
+  ]
 }

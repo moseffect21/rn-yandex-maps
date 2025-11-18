@@ -5,11 +5,11 @@ Pod::Spec.new do |s|
     s.name         = "RNYamap"
     s.version      = package["version"]
     s.summary      = package["description"]
-    s.homepage     = "vvdev.ru"
+    s.homepage     = "https://github.com/moseffect21/rn-yandex-maps"
     s.license      = "MIT"
     s.author       = { package["author"]["name"] => package["author"]["email"] }
     s.platform     = :ios, "12.0"
-    s.source       = { :git => "https://github.com/author/RNYamap.git", :tag => "master" }
+    s.source       = { :git => "https://github.com/moseffect21/rn-yandex-maps.git", :tag => "v#{s.version}" }
     s.source_files = "ios/**/*.{h,m,swift}"
     # s.requires_arc = true
 
