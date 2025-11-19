@@ -59,6 +59,11 @@
     self = [super initWithFrame:CGRectZero];
 #endif
 
+    YMKMap *map = self.mapWindow.map;
+    if (map != nil) {
+        [map setMapLoadedListenerWithMapLoadedListener:self];
+    }
+
     _reactSubviews = [[NSMutableArray alloc] init];
     masstransitRouter = [[YMKTransportFactory instance] createMasstransitRouter];
     drivingRouter = [[YMKDirectionsFactory instance] createDrivingRouterWithType:YMKDrivingRouterTypeOnline];
@@ -85,7 +90,63 @@
     [self.mapWindow.map addInputListenerWithInputListener:(id<YMKMapInputListener>) self];
     [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
     initializedRegion = NO;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.frame = [UIScreen mainScreen].bounds;
+        [self setNeedsLayout];
+        [self layoutIfNeeded];
+    });
     return self;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.superview != nil) {
+            self.bounds = self.superview.bounds;
+            self.center = CGPointMake(CGRectGetMidX(self.superview.bounds), CGRectGetMidY(self.superview.bounds));
+        }
+        Boolean isListenerSet = false;
+        // гарантируем, что листенер навешен только когда map уже жива
+        if (self.mapWindow != nil && self.mapWindow.map != nil) {
+            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+            isListenerSet = true;
+        }
+        
+        // заставляем обновить layout OpenGL-слоя
+        [self setNeedsLayout];
+        [self layoutIfNeeded];
+        
+        // повторно регистрируем listener, если карта есть, но его нет
+        if (self.mapWindow != nil && self.mapWindow.map != nil && isListenerSet == false) {
+            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+        }
+    });
+}
+
+- (void)didMoveToSuperview {
+    [super didMoveToSuperview];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.mapWindow != nil && self.mapWindow.map != nil) {
+            NSLog(@"[RNYMView] didMoveToSuperview -> attaching mapLoadedListener");
+            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+        }
+    });
+}
+
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    
+    if (self.mapWindow != nil && self.mapWindow.map != nil) {
+        [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (self.superview != nil) {
+            self.frame = self.superview.bounds;
+            [self setNeedsLayout];
+            [self layoutIfNeeded];
+        }
+    });
 }
 
 - (NSDictionary*)convertDrivingRouteSection:(YMKDrivingRoute*)route withSection:(YMKDrivingSection*)section {
