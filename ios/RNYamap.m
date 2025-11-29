@@ -26,6 +26,7 @@ static NSString * _selectedMarkerIcon;
 
 - (void)initWithKey:(NSString *) apiKey {
     [YMKMapKit setApiKey: apiKey];
+    [YMKMapKit sharedInstance];
     [[YMKMapKit sharedInstance] onStart];
 }
 

@@ -154,8 +154,10 @@ RCT_CUSTOM_VIEW_PROPERTY(maxFps, NSNumber, RNYMView) {
 }
 
 RCT_CUSTOM_VIEW_PROPERTY(interactive, BOOL, RNYMView) {
-    if (json && view) {
-        [view setInteractive:[json boolValue]];
+    BOOL interactiveValue = json ? [json boolValue] : YES; // По умолчанию true
+    // Лог для отладки интерактивности
+    if (view) {
+        [view setInteractive:interactiveValue];
     }
 }
 

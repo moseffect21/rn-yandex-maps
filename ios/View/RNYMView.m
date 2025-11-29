@@ -48,18 +48,31 @@
     UIColor *userLocationAccuracyStrokeColor;
     float userLocationAccuracyStrokeWidth;
     Boolean initializedRegion;
+    BOOL _isUpdatingLayout; // Флаг для предотвращения рекурсии в layoutSubviews
 }
 
 - (instancetype)init {
-#if TARGET_OS_SIMULATOR
-    NXArchInfo *archInfo = NXGetLocalArchInfo();
-    NSString *cpuArch = [NSString stringWithUTF8String:archInfo->description];
-    self = [super initWithFrame:CGRectZero vulkanPreferred:[cpuArch hasPrefix:@"ARM64"]];
-#else
     self = [super initWithFrame:CGRectZero];
+
+    self.userInteractionEnabled = YES;
+    self.multipleTouchEnabled = YES;
+
+#if TARGET_OS_SIMULATOR
+    BOOL vulkanPreferred = YES;
+#else
+    BOOL vulkanPreferred = NO;
 #endif
 
-    YMKMap *map = self.mapWindow.map;
+    self.mapView = [[YMKMapView alloc] initWithFrame:CGRectZero vulkanPreferred:vulkanPreferred];
+    self.mapView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+
+    self.mapView.userInteractionEnabled = YES;
+    self.mapView.multipleTouchEnabled = YES;
+
+    [self addSubview:self.mapView];
+    [self.mapView setNoninteractive:NO];
+
+    YMKMap *map = self.mapView.mapWindow.map;
     if (map != nil) {
         [map setMapLoadedListenerWithMapLoadedListener:self];
     }
@@ -86,67 +99,155 @@
     userLocationAccuracyFillColor = nil;
     userLocationAccuracyStrokeColor = nil;
     userLocationAccuracyStrokeWidth = 0.f;
-    [self.mapWindow.map addCameraListenerWithCameraListener:self];
-    [self.mapWindow.map addInputListenerWithInputListener:(id<YMKMapInputListener>) self];
-    [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+    [self.mapView.mapWindow.map addCameraListenerWithCameraListener:self];
+    [self.mapView.mapWindow.map addInputListenerWithInputListener:(id<YMKMapInputListener>) self];
+    [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
     initializedRegion = NO;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self.frame = [UIScreen mainScreen].bounds;
-        [self setNeedsLayout];
-        [self layoutIfNeeded];
-    });
+
     return self;
+}
+
+// Геттер для обратной совместимости - проксируем mapWindow от внутреннего YMKMapView
+- (YMKMapWindow *)mapWindow {
+    return self.mapView ? self.mapView.mapWindow : nil;
+}
+
+// КРИТИЧНО: Переопределяем setFrame чтобы обновлять mapView.frame когда React Native меняет размеры
+- (void)setFrame:(CGRect)frame {
+    [super setFrame:frame];
+
+    if (self.mapView != nil && frame.size.width > 0 && frame.size.height > 0) {
+        self.mapView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
+        [self.mapView setNeedsLayout];
+    }
+}
+
+// КРИТИЧНО для Fabric: переопределяем reactSetFrame чтобы обновлять mapView.frame
+- (void)reactSetFrame:(CGRect)frame {
+    NSLog(@"[RNYMView] reactSetFrame CALLED: frame=(%.0f,%.0f,%.0fx%.0f)",
+          frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
+    
+    self.mapFrame = frame;
+    [super reactSetFrame:frame];
+
+    if (self.mapView != nil && frame.size.width > 0 && frame.size.height > 0) {
+        self.mapView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
+        [self.mapView setNeedsLayout];
+    }
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    
+
+    if (self.isUpdatingLayout) {
+        return;
+    }
+
+    // ДИНАМИЧЕСКОЕ обновление размеров: позволяем React Native менять размеры, но защищаем от нулевых
+    if (self.bounds.size.width > 0 && self.bounds.size.height > 0) {
+        // Размеры корректные - синхронизируем mapView и запоминаем как "корректные"
+        if (self.mapView != nil) {
+            self.mapView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+        }
+
+        // Запоминаем текущие размеры как "корректные" для защиты от будущих нулевых перезаписей
+        self.correctWidth = self.bounds.size.width;
+        self.correctHeight = self.bounds.size.height;
+
+    } else if (self.correctWidth > 0 && self.correctHeight > 0) {
+        // Размеры стали нулевыми - восстанавливаем последние корректные размеры
+        NSLog(@"[RNYMView] layoutSubviews: BLOCKING zero size override! Restoring correct size (%.0fx%.0f)",
+              self.correctWidth, self.correctHeight);
+
+        self.isUpdatingLayout = YES;
+
+        self.bounds = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
+        self.center = CGPointMake(self.correctWidth / 2.0, self.correctHeight / 2.0);
+        self.layer.frame = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
+
+        if (self.mapView != nil) {
+            self.mapView.frame = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
+        }
+
+        self.isUpdatingLayout = NO;
+
+    } else if (self.superview != nil && self.superview.bounds.size.width > 0 && self.superview.bounds.size.height > 0 &&
+               (self.bounds.size.width == 0 || self.bounds.size.height == 0)) {
+        // ПЕРВИЧНАЯ УСТАНОВКА РАЗМЕРОВ: если размеры все еще нулевые, устанавливаем от superview
+        CGRect superviewBounds = self.superview.bounds;
+        NSLog(@"[RNYMView] layoutSubviews: INITIAL setup from superview (%.0fx%.0f)",
+              superviewBounds.size.width, superviewBounds.size.height);
+
+        self.isUpdatingLayout = YES;
+        [super setFrame:CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height)];
+
+        if (self.mapView != nil) {
+            self.mapView.frame = CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height);
+        }
+
+        self.correctWidth = superviewBounds.size.width;
+        self.correctHeight = superviewBounds.size.height;
+        self.isUpdatingLayout = NO;
+    }
+
+    // Регистрируем listener в dispatch_async
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.superview != nil) {
-            self.bounds = self.superview.bounds;
-            self.center = CGPointMake(CGRectGetMidX(self.superview.bounds), CGRectGetMidY(self.superview.bounds));
-        }
-        Boolean isListenerSet = false;
-        // гарантируем, что листенер навешен только когда map уже жива
-        if (self.mapWindow != nil && self.mapWindow.map != nil) {
-            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
-            isListenerSet = true;
-        }
-        
-        // заставляем обновить layout OpenGL-слоя
-        [self setNeedsLayout];
-        [self layoutIfNeeded];
-        
-        // повторно регистрируем listener, если карта есть, но его нет
-        if (self.mapWindow != nil && self.mapWindow.map != nil && isListenerSet == false) {
-            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+        if (self.mapView != nil && self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
+            [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
         }
     });
 }
 
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.mapWindow != nil && self.mapWindow.map != nil) {
-            NSLog(@"[RNYMView] didMoveToSuperview -> attaching mapLoadedListener");
-            [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
-        }
-    });
+
+    // Синхронизируем mapView.frame если размеры известны
+    if (self.mapView != nil && self.bounds.size.width > 0 && self.bounds.size.height > 0) {
+        self.mapView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+        [self.mapView setNeedsLayout];
+    }
+
+    // Обновляем mapLoadedListener если карта готова
+    if (self.mapView != nil && self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
+        [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+    }
 }
 
 - (void)didMoveToWindow {
-    [super didMoveToWindow];
-    
-    if (self.mapWindow != nil && self.mapWindow.map != nil) {
-        [self.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
-    }
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.superview != nil) {
-            self.frame = self.superview.bounds;
-            [self setNeedsLayout];
-            [self layoutIfNeeded];
+    // ИНИЦИАЛИЗАЦИЯ: устанавливаем размеры при первом появлении в window (только если нулевые)
+    if (self.superview != nil && self.superview.bounds.size.width > 0 && self.superview.bounds.size.height > 0 &&
+        (self.bounds.size.width == 0 || self.bounds.size.height == 0)) {
+
+        CGRect superviewBounds = self.superview.bounds;
+
+        // Устанавливаем размеры через super (только при инициализации)
+        self.isUpdatingLayout = YES;
+        [super setFrame:CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height)];
+
+        // Обновляем mapView.frame
+        if (self.mapView != nil) {
+            self.mapView.frame = CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height);
         }
-    });
+
+        // Запоминаем размеры для защиты от нулевых перезаписей
+        self.correctWidth = superviewBounds.size.width;
+        self.correctHeight = superviewBounds.size.height;
+
+        self.isUpdatingLayout = NO;
+    }
+
+    [super didMoveToWindow];
+
+    // Синхронизируем mapView.frame если размеры известны
+    if (self.mapView != nil && self.bounds.size.width > 0 && self.bounds.size.height > 0) {
+        self.mapView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+        [self.mapView setNeedsLayout];
+    }
+
+    // Обновляем mapLoadedListener если карта готова
+    if (self.mapView != nil && self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
+        [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+    }
 }
 
 - (NSDictionary*)convertDrivingRouteSection:(YMKDrivingRoute*)route withSection:(YMKDrivingSection*)section {
@@ -879,11 +980,6 @@
     }
 }
 
-- (void)reactSetFrame:(CGRect)frame {
-    self.mapFrame = frame;
-    [super reactSetFrame:frame];
-}
-
 - (void)layoutMarginsDidChange {
     [super reactSetFrame:self.mapFrame];
 }
@@ -893,7 +989,29 @@
 }
 
 - (void)setInteractive:(BOOL)interactive {
-    [self setNoninteractive:!interactive];
+    [self.mapView setNoninteractive:!interactive];
+}
+
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    if (!self.userInteractionEnabled || self.hidden || self.alpha < 0.01) {
+        return nil;
+    }
+
+    if (![self pointInside:point withEvent:event]) {
+        return nil;
+    }
+
+    // Передаем событие в mapView
+    if (self.mapView != nil && self.mapView.userInteractionEnabled) {
+        CGPoint mapViewPoint = [self convertPoint:point toView:self.mapView];
+        UIView *hitView = [self.mapView hitTest:mapViewPoint withEvent:event];
+        if (hitView != nil) {
+            return hitView;
+        }
+        return self.mapView;
+    }
+
+    return [super hitTest:point withEvent:event];
 }
 
 
