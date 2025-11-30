@@ -8,7 +8,7 @@
 
 // КРИТИЧНО: RNYMView теперь UIView-контейнер, а НЕ прямой subclass YMKMapView!
 // Это решает проблему с OpenGL viewport на реальных устройствах
-@interface RNYMView: UIView<YMKUserLocationObjectListener, YMKMapCameraListener, RCTComponent, YMKMapLoadedListener, YMKTrafficDelegate>
+@interface RNYMView: UIView<YMKUserLocationObjectListener, YMKMapCameraListener, RCTComponent, YMKMapLoadedListener, YMKTrafficDelegate, YMKMapSizeChangedListener>
 
 @property (nonatomic, strong) YMKMapView *mapView; // Внутренний YMKMapView
 @property (nonatomic, readonly) YMKMapWindow *mapWindow; // Геттер для обратной совместимости (проксирует mapView.mapWindow)
@@ -24,10 +24,12 @@
 @property (nonatomic, copy) RCTBubblingEventBlock _Nullable onWorldToScreenPointsReceived;
 @property (nonatomic, copy) RCTBubblingEventBlock _Nullable onScreenToWorldPointsReceived;
 
-// Свойства для блокировки React Native перезаписей размеров
+// Свойства для хранения размеров
 @property (nonatomic, assign) CGFloat correctWidth;
 @property (nonatomic, assign) CGFloat correctHeight;
-@property (nonatomic, assign) BOOL isUpdatingLayout;
+
+// Кэш последних правильных размеров для защиты от нулевых
+@property (nonatomic, assign) CGRect lastValidFrame;
 
 // REF
 - (void)emitCameraPositionToJS:(NSString *_Nonnull)_id;

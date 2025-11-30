@@ -48,7 +48,6 @@
     UIColor *userLocationAccuracyStrokeColor;
     float userLocationAccuracyStrokeWidth;
     Boolean initializedRegion;
-    BOOL _isUpdatingLayout; // Флаг для предотвращения рекурсии в layoutSubviews
 }
 
 - (instancetype)init {
@@ -57,25 +56,30 @@
     self.userInteractionEnabled = YES;
     self.multipleTouchEnabled = YES;
 
+    // Создаем mapView сразу как в MapkitDemo, но с placeholder размерами
+    // В MapkitDemo: mapView = YMKMapView(frame: view.frame) в viewDidLoad
+    // У нас размеры еще неизвестны, поэтому используем CGRectZero
+    CGRect placeholderFrame = CGRectZero;
+
 #if TARGET_OS_SIMULATOR
     BOOL vulkanPreferred = YES;
 #else
     BOOL vulkanPreferred = NO;
 #endif
 
-    self.mapView = [[YMKMapView alloc] initWithFrame:CGRectZero vulkanPreferred:vulkanPreferred];
+    self.mapView = [[YMKMapView alloc] initWithFrame:placeholderFrame vulkanPreferred:vulkanPreferred];
     self.mapView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-
     self.mapView.userInteractionEnabled = YES;
     self.mapView.multipleTouchEnabled = YES;
 
     [self addSubview:self.mapView];
     [self.mapView setNoninteractive:NO];
 
-    YMKMap *map = self.mapView.mapWindow.map;
-    if (map != nil) {
-        [map setMapLoadedListenerWithMapLoadedListener:self];
-    }
+    // Настраиваем listeners как в MapkitDemo
+    [self.mapView.mapWindow.map addCameraListenerWithCameraListener:self];
+    [self.mapView.mapWindow.map addInputListenerWithInputListener:(id<YMKMapInputListener>) self];
+    [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+    [self.mapView.mapWindow addSizeChangedListenerWithSizeChangedListener:self];
 
     _reactSubviews = [[NSMutableArray alloc] init];
     masstransitRouter = [[YMKTransportFactory instance] createMasstransitRouter];
@@ -99,100 +103,116 @@
     userLocationAccuracyFillColor = nil;
     userLocationAccuracyStrokeColor = nil;
     userLocationAccuracyStrokeWidth = 0.f;
-    [self.mapView.mapWindow.map addCameraListenerWithCameraListener:self];
-    [self.mapView.mapWindow.map addInputListenerWithInputListener:(id<YMKMapInputListener>) self];
-    [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
     initializedRegion = NO;
+
+    // Инициализируем кэш размеров
+    self.lastValidFrame = CGRectZero;
 
     return self;
 }
 
 // Геттер для обратной совместимости - проксируем mapWindow от внутреннего YMKMapView
 - (YMKMapWindow *)mapWindow {
-    return self.mapView ? self.mapView.mapWindow : nil;
+    return self.mapView.mapWindow;
 }
 
-// КРИТИЧНО: Переопределяем setFrame чтобы обновлять mapView.frame когда React Native меняет размеры
+// КРИТИЧНО: Переопределяем setFrame чтобы обновлять UIView bounds и mapView.frame при положительных размерах от RN
 - (void)setFrame:(CGRect)frame {
-    [super setFrame:frame];
+    NSLog(@"[RNYMView] setFrame: called with (%fx%f), current mapView.frame = (%fx%f), lastValidFrame = (%fx%f)",
+          frame.size.width, frame.size.height,
+          self.mapView ? self.mapView.frame.size.width : 0, self.mapView ? self.mapView.frame.size.height : 0,
+          self.lastValidFrame.size.width, self.lastValidFrame.size.height);
 
-    if (self.mapView != nil && frame.size.width > 0 && frame.size.height > 0) {
-        self.mapView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
-        [self.mapView setNeedsLayout];
+    [super setFrame:frame]; // UIView frame устанавливается RN
+
+    if (frame.size.width > 0 && frame.size.height > 0) {
+        // ✅ RN дал положительные размеры - устанавливаем для UIView и карты
+        self.lastValidFrame = frame;
+
+        // 1. Устанавливаем UIView bounds для touch handling
+        CGRect boundsRect = CGRectMake(0, 0, frame.size.width, frame.size.height);
+        if (!CGRectEqualToRect(self.bounds, boundsRect)) {
+            self.bounds = boundsRect;
+            NSLog(@"[RNYMView] setFrame: updated UIView bounds to (%fx%f)",
+                  self.bounds.size.width, self.bounds.size.height);
+        }
+
+        // 2. Обновляем mapView.frame для отображения карты (в точках!)
+        if (self.mapView) {
+            CGRect oldFrame = self.mapView.frame;
+            self.mapView.frame = boundsRect;
+            [self.mapView setNeedsLayout];
+
+            if (!CGRectEqualToRect(oldFrame, self.mapView.frame)) {
+                NSLog(@"[RNYMView] setFrame: updated mapView.frame from (%fx%f) to (%fx%f) POINTS",
+                      oldFrame.size.width, oldFrame.size.height,
+                      self.mapView.frame.size.width, self.mapView.frame.size.height);
+
+                [self updateMapFocus]; // Настраиваем focusRect как в MapkitDemo
+            }
+        }
+    } else {
+        // ❌ RN устанавливает нули - игнорируем (UIView bounds остаются нулевыми)
+        NSLog(@"[RNYMView] setFrame: zero/negative frame (%fx%f) - IGNORING (UIView bounds stay zero)",
+              frame.size.width, frame.size.height);
     }
 }
 
 // КРИТИЧНО для Fabric: переопределяем reactSetFrame чтобы обновлять mapView.frame
 - (void)reactSetFrame:(CGRect)frame {
-    NSLog(@"[RNYMView] reactSetFrame CALLED: frame=(%.0f,%.0f,%.0fx%.0f)",
-          frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
-    
+    NSLog(@"[RNYMView] reactSetFrame: called with (%fx%f), current mapView.frame = (%fx%f)",
+          frame.size.width, frame.size.height,
+          self.mapView.frame.size.width, self.mapView.frame.size.height);
+
     self.mapFrame = frame;
     [super reactSetFrame:frame];
 
-    if (self.mapView != nil && frame.size.width > 0 && frame.size.height > 0) {
+    if (frame.size.width > 0 && frame.size.height > 0) {
         self.mapView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
         [self.mapView setNeedsLayout];
+
+        NSLog(@"[RNYMView] reactSetFrame: updated mapView.frame to (%fx%f) POINTS",
+              self.mapView.frame.size.width, self.mapView.frame.size.height);
+
+        [self updateMapFocus]; // Настраиваем focusRect как в MapkitDemo
+    } else {
+        NSLog(@"[RNYMView] reactSetFrame: zero/negative frame (%fx%f) - skipping update",
+              frame.size.width, frame.size.height);
     }
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
 
-    if (self.isUpdatingLayout) {
-        return;
+    NSLog(@"[RNYMView] layoutSubviews: called, bounds = (%fx%f), mapView.frame = (%fx%f), lastValidFrame = (%fx%f)",
+          self.bounds.size.width, self.bounds.size.height,
+          self.mapView ? self.mapView.frame.size.width : 0, self.mapView ? self.mapView.frame.size.height : 0,
+          self.lastValidFrame.size.width, self.lastValidFrame.size.height);
+
+    // ВОССТАНАВЛИВАЕМ UIView frame целиком если bounds нулевые (включая позицию!)
+    if (!CGRectIsEmpty(self.lastValidFrame) &&
+        (self.bounds.size.width <= 0 || self.bounds.size.height <= 0)) {
+        CGRect oldFrame = self.frame;
+        self.frame = self.lastValidFrame;
+        NSLog(@"[RNYMView] layoutSubviews: RESTORED UIView frame from (%fx%f @ %fx%f) to (%fx%f @ %fx%f) for touch handling",
+              oldFrame.size.width, oldFrame.size.height, oldFrame.origin.x, oldFrame.origin.y,
+              self.frame.size.width, self.frame.size.height, self.frame.origin.x, self.frame.origin.y);
     }
 
-    // ДИНАМИЧЕСКОЕ обновление размеров: позволяем React Native менять размеры, но защищаем от нулевых
-    if (self.bounds.size.width > 0 && self.bounds.size.height > 0) {
-        // Размеры корректные - синхронизируем mapView и запоминаем как "корректные"
-        if (self.mapView != nil) {
-            self.mapView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-        }
+    // ВОССТАНАВЛИВАЕМ mapView.frame если он отличается (для отображения карты)
+    if (self.mapView && !CGRectEqualToRect(self.mapView.frame, self.lastValidFrame)) {
+        CGRect oldFrame = self.mapView.frame;
+        self.mapView.frame = self.lastValidFrame;
+        [self updateMapFocus];
 
-        // Запоминаем текущие размеры как "корректные" для защиты от будущих нулевых перезаписей
-        self.correctWidth = self.bounds.size.width;
-        self.correctHeight = self.bounds.size.height;
-
-    } else if (self.correctWidth > 0 && self.correctHeight > 0) {
-        // Размеры стали нулевыми - восстанавливаем последние корректные размеры
-        NSLog(@"[RNYMView] layoutSubviews: BLOCKING zero size override! Restoring correct size (%.0fx%.0f)",
-              self.correctWidth, self.correctHeight);
-
-        self.isUpdatingLayout = YES;
-
-        self.bounds = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
-        self.center = CGPointMake(self.correctWidth / 2.0, self.correctHeight / 2.0);
-        self.layer.frame = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
-
-        if (self.mapView != nil) {
-            self.mapView.frame = CGRectMake(0, 0, self.correctWidth, self.correctHeight);
-        }
-
-        self.isUpdatingLayout = NO;
-
-    } else if (self.superview != nil && self.superview.bounds.size.width > 0 && self.superview.bounds.size.height > 0 &&
-               (self.bounds.size.width == 0 || self.bounds.size.height == 0)) {
-        // ПЕРВИЧНАЯ УСТАНОВКА РАЗМЕРОВ: если размеры все еще нулевые, устанавливаем от superview
-        CGRect superviewBounds = self.superview.bounds;
-        NSLog(@"[RNYMView] layoutSubviews: INITIAL setup from superview (%.0fx%.0f)",
-              superviewBounds.size.width, superviewBounds.size.height);
-
-        self.isUpdatingLayout = YES;
-        [super setFrame:CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height)];
-
-        if (self.mapView != nil) {
-            self.mapView.frame = CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height);
-        }
-
-        self.correctWidth = superviewBounds.size.width;
-        self.correctHeight = superviewBounds.size.height;
-        self.isUpdatingLayout = NO;
+        NSLog(@"[RNYMView] layoutSubviews: RESTORED mapView.frame from (%fx%f) to (%fx%f) POINTS for display",
+              oldFrame.size.width, oldFrame.size.height,
+              self.mapView.frame.size.width, self.mapView.frame.size.height);
     }
 
     // Регистрируем listener в dispatch_async
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.mapView != nil && self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
+        if (self.mapView && self.mapView.mapWindow && self.mapView.mapWindow.map) {
             [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
         }
     });
@@ -200,6 +220,24 @@
 
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
+
+    // Очищаем старый observer если superview сменился
+    if (self.superview != nil) {
+        // Добавляем KVO для отслеживания изменений superview.bounds
+        [self.superview addObserver:self
+                        forKeyPath:@"bounds"
+                           options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld
+                           context:NULL];
+        NSLog(@"[RNYMView] KVO: Started observing superview.bounds");
+    } else {
+        // Убираем observer если superview удален
+        @try {
+            [self.superview removeObserver:self forKeyPath:@"bounds"];
+            NSLog(@"[RNYMView] KVO: Stopped observing superview.bounds");
+        } @catch (NSException *exception) {
+            // Observer уже удален
+        }
+    }
 
     // Синхронизируем mapView.frame если размеры известны
     if (self.mapView != nil && self.bounds.size.width > 0 && self.bounds.size.height > 0) {
@@ -214,39 +252,85 @@
 }
 
 - (void)didMoveToWindow {
+    NSLog(@"[RNYMView] didMoveToWindow: called, superview = %@, bounds = (%fx%f), mapView.frame = (%fx%f), lastValidFrame = (%fx%f), window = %@",
+          self.superview ? @"YES" : @"NO",
+          self.bounds.size.width, self.bounds.size.height,
+          self.mapView ? self.mapView.frame.size.width : 0, self.mapView ? self.mapView.frame.size.height : 0,
+          self.lastValidFrame.size.width, self.lastValidFrame.size.height,
+          self.window ? @"YES" : @"NO");
+
     // ИНИЦИАЛИЗАЦИЯ: устанавливаем размеры при первом появлении в window (только если нулевые)
     if (self.superview != nil && self.superview.bounds.size.width > 0 && self.superview.bounds.size.height > 0 &&
         (self.bounds.size.width == 0 || self.bounds.size.height == 0)) {
 
         CGRect superviewBounds = self.superview.bounds;
+        NSLog(@"[RNYMView] didMoveToWindow: setting initial frame from superview (%fx%f)",
+              superviewBounds.size.width, superviewBounds.size.height);
 
-        // Устанавливаем размеры через super (только при инициализации)
-        self.isUpdatingLayout = YES;
-        [super setFrame:CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height)];
-
-        // Обновляем mapView.frame
-        if (self.mapView != nil) {
-            self.mapView.frame = CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height);
-        }
-
-        // Запоминаем размеры для защиты от нулевых перезаписей
-        self.correctWidth = superviewBounds.size.width;
-        self.correctHeight = superviewBounds.size.height;
-
-        self.isUpdatingLayout = NO;
+        // Устанавливаем размеры через setFrame (что вызовет нашу логику)
+        [self setFrame:CGRectMake(0, 0, superviewBounds.size.width, superviewBounds.size.height)];
     }
 
     [super didMoveToWindow];
 
-    // Синхронизируем mapView.frame если размеры известны
-    if (self.mapView != nil && self.bounds.size.width > 0 && self.bounds.size.height > 0) {
-        self.mapView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
+    // Синхронизируем mapView.frame с lastValidFrame если она существует
+    if (self.mapView != nil && !CGRectIsEmpty(self.lastValidFrame)) {
+        CGRect oldFrame = self.mapView.frame;
+        self.mapView.frame = self.lastValidFrame;
         [self.mapView setNeedsLayout];
+
+        if (!CGRectEqualToRect(oldFrame, self.mapView.frame)) {
+            NSLog(@"[RNYMView] didMoveToWindow: restored mapView.frame to lastValidFrame (%fx%f)",
+                  self.mapView.frame.size.width, self.mapView.frame.size.height);
+            [self updateMapFocus];
+        }
     }
 
     // Обновляем mapLoadedListener если карта готова
-    if (self.mapView != nil && self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
+    if (self.mapView.mapWindow != nil && self.mapView.mapWindow.map != nil) {
         [self.mapView.mapWindow.map setMapLoadedListenerWithMapLoadedListener:self];
+        NSLog(@"[RNYMView] didMoveToWindow: map loaded listener registered");
+    } else {
+        NSLog(@"[RNYMView] didMoveToWindow: map not ready yet");
+    }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary<NSKeyValueChangeKey, id> *)change
+                       context:(void *)context {
+    if ([keyPath isEqualToString:@"bounds"] && object == self.superview) {
+        CGRect oldBounds = [change[NSKeyValueChangeOldKey] CGRectValue];
+        CGRect newBounds = [change[NSKeyValueChangeNewKey] CGRectValue];
+
+        NSLog(@"[RNYMView] KVO: superview.bounds changed from (%fx%f) to (%fx%f)",
+              oldBounds.size.width, oldBounds.size.height,
+              newBounds.size.width, newBounds.size.height);
+
+        // Если superview получил положительные размеры - обновляем себя
+        if (newBounds.size.width > 0 && newBounds.size.height > 0) {
+            // Обновляем UIView bounds для touch handling
+            if (!CGRectEqualToRect(self.bounds, newBounds)) {
+                self.bounds = newBounds;
+                self.lastValidFrame = newBounds;
+                NSLog(@"[RNYMView] KVO: updated UIView bounds to (%fx%f)",
+                      self.bounds.size.width, self.bounds.size.height);
+            }
+
+            // Обновляем mapView.frame (в точках)
+            if (self.mapView) {
+                CGRect oldFrame = self.mapView.frame;
+                if (!CGRectEqualToRect(oldFrame, newBounds)) {
+                    self.mapView.frame = newBounds;
+                    [self.mapView setNeedsLayout];
+                    [self updateMapFocus];
+
+                    NSLog(@"[RNYMView] KVO: updated mapView.frame from (%fx%f) to (%fx%f) POINTS",
+                          oldFrame.size.width, oldFrame.size.height,
+                          self.mapView.frame.size.width, self.mapView.frame.size.height);
+                }
+            }
+        }
     }
 }
 
@@ -964,6 +1048,9 @@
 }
 
 - (void)onMapLoadedWithStatistics:(YMKMapLoadStatistics*)statistics {
+    NSLog(@"[RNYMView] onMapLoaded: map loaded with statistics - renderObjects: %d, fullyLoaded: %d",
+          statistics.renderObjectCount, statistics.fullyLoaded);
+
     if (self.onMapLoaded) {
         NSDictionary *data = @{
             @"renderObjectCount": @(statistics.renderObjectCount),
@@ -986,6 +1073,65 @@
 
 - (void)setMaxFps:(float)maxFps {
 //    [self.mapWindow setMaxFpsWithFps:maxFps];
+}
+
+// Реализация YMKMapSizeChangedListener - обновляем focusRect при изменении размера
+- (void)onMapWindowSizeChangedWithMapWindow:(nonnull YMKMapWindow *)mapWindow newWidth:(int)newWidth newHeight:(int)newHeight {
+    NSLog(@"[RNYMView] onMapWindowSizeChanged: new size (%dx%d), current view bounds (%fx%f)",
+          newWidth, newHeight, self.bounds.size.width, self.bounds.size.height);
+    [self updateMapFocus];
+}
+
+// Настройка focusRect и focusPoint для корректного touch handling (как в MapkitDemo)
+- (void)updateMapFocus {
+    if (!self.mapView || !self.mapView.mapWindow) {
+        NSLog(@"[RNYMView] updateMapFocus: mapView or mapWindow is nil, skipping");
+        return;
+    }
+
+    CGFloat scale = UIScreen.mainScreen.scale;
+    CGSize viewSize = self.frame.size;
+    CGSize screenSize = [UIScreen mainScreen].bounds.size;
+
+    NSLog(@"[RNYMView] updateMapFocus: view.frame = (%fx%f), screen = (%fx%f @ %.1fx scale)",
+          viewSize.width, viewSize.height,
+          screenSize.width, screenSize.height, scale);
+
+    if (viewSize.width <= 0 || viewSize.height <= 0) {
+        return;
+    }
+
+    // Определяем координатную систему в зависимости от рендерера
+    BOOL isVulkan = TARGET_OS_SIMULATOR; // Эмулятор = Vulkan, Устройство = Metal
+
+    if (isVulkan) {
+        // Vulkan: используем ПИКСЕЛЬНЫЕ координаты для нормального масштаба
+        CGFloat pixelWidth = viewSize.width * scale;
+        CGFloat pixelHeight = viewSize.height * scale;
+
+        YMKScreenPoint *topLeft = [YMKScreenPoint screenPointWithX:0.0 y:0.0];
+        YMKScreenPoint *bottomRight = [YMKScreenPoint screenPointWithX:pixelWidth y:pixelHeight];
+        YMKScreenRect *focusRect = [YMKScreenRect screenRectWithTopLeft:topLeft bottomRight:bottomRight];
+        self.mapView.mapWindow.focusRect = focusRect;
+
+        YMKScreenPoint *focusPoint = [YMKScreenPoint screenPointWithX:(pixelWidth * 0.5) y:(pixelHeight * 0.5)];
+        self.mapView.mapWindow.focusPoint = focusPoint;
+
+        NSLog(@"[RNYMView] updateMapFocus: VULKAN - focusRect (%fx%f) and focusPoint (%fx%f) set in PIXELS",
+              pixelWidth, pixelHeight, pixelWidth * 0.5, pixelHeight * 0.5);
+    } else {
+        // Metal: используем ТОЧЕЧНЫЕ координаты
+        YMKScreenPoint *topLeft = [YMKScreenPoint screenPointWithX:0.0 y:0.0];
+        YMKScreenPoint *bottomRight = [YMKScreenPoint screenPointWithX:viewSize.width y:viewSize.height];
+        YMKScreenRect *focusRect = [YMKScreenRect screenRectWithTopLeft:topLeft bottomRight:bottomRight];
+        self.mapView.mapWindow.focusRect = focusRect;
+
+        YMKScreenPoint *focusPoint = [YMKScreenPoint screenPointWithX:(viewSize.width * 0.5) y:(viewSize.height * 0.5)];
+        self.mapView.mapWindow.focusPoint = focusPoint;
+
+        NSLog(@"[RNYMView] updateMapFocus: METAL - focusRect (%fx%f) and focusPoint (%fx%f) set in POINTS",
+              viewSize.width, viewSize.height, viewSize.width * 0.5, viewSize.height * 0.5);
+    }
 }
 
 - (void)setInteractive:(BOOL)interactive {
